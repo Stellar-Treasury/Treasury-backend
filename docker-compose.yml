@@ -1,0 +1,44 @@
+# docker-compose.yml
+# chore(infra): local development stack — Postgres + backend
+
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: dao_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER:     dao_user
+      POSTGRES_PASSWORD: dao_pass
+      POSTGRES_DB:       dao_treasury
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U dao_user -d dao_treasury']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dao_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://dao_user:dao_pass@postgres:5432/dao_treasury
+    ports:
+      - '3001:3001'
+    volumes:
+      - ./src:/app/src        # Hot-reload in dev
+    command: npm run dev
+
+volumes:
+  postgres_data:

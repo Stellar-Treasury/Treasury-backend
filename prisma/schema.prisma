@@ -1,0 +1,147 @@
+// prisma/schema.prisma
+// chore(db): define PostgreSQL schema for DAO treasury backend
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Proposals ────────────────────────────────────────────────────────────────
+
+enum ProposalStatus {
+  PENDING
+  EXECUTED
+  CANCELLED
+}
+
+enum ProposalKind {
+  TRANSFER
+  ADD_SIGNER
+  REMOVE_SIGNER
+}
+
+model Proposal {
+  id             String         @id @default(uuid())
+  onChainId      Int            @unique   // Contract proposal ID (u64)
+  proposer       String                   // Stellar address
+  kind           ProposalKind
+  status         ProposalStatus @default(PENDING)
+  description    String
+  threshold      Int
+  createdAtLedger Int                     // Ledger sequence at creation
+  executedAtLedger Int?
+  cancelledAtLedger Int?
+
+  // Transfer-specific
+  recipient      String?
+  amount         Decimal?                 // In XLM (not stroops)
+
+  // Signer mutation specific
+  signerAddress  String?
+
+  // Relations
+  approvals      Approval[]
+  events         ContractEvent[]
+
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([status])
+  @@index([proposer])
+  @@index([kind])
+}
+
+// ── Approvals ────────────────────────────────────────────────────────────────
+
+model Approval {
+  id           String   @id @default(uuid())
+  proposalId   String
+  signerAddress String
+  ledgerSeq    Int
+  txHash       String?
+
+  proposal     Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+
+  createdAt    DateTime @default(now())
+
+  @@unique([proposalId, signerAddress])  // No duplicate approvals per proposal
+  @@index([signerAddress])
+}
+
+// ── Signers ──────────────────────────────────────────────────────────────────
+
+model Signer {
+  id          String   @id @default(uuid())
+  address     String   @unique
+  label       String?
+  active      Boolean  @default(true)
+  addedAtLedger   Int
+  removedAtLedger Int?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([active])
+}
+
+// ── Contract events (raw indexed log) ────────────────────────────────────────
+
+model ContractEvent {
+  id         String   @id @default(uuid())
+  txHash     String
+  ledgerSeq  Int
+  eventType  String   // prop_new | prop_appr | prop_exec | prop_cncl | sign_add | sign_rm | transfer
+  topics     Json
+  data       Json
+  proposalId String?
+
+  proposal   Proposal? @relation(fields: [proposalId], references: [id])
+
+  createdAt  DateTime  @default(now())
+
+  @@unique([txHash, eventType])
+  @@index([ledgerSeq])
+  @@index([eventType])
+}
+
+// ── Treasury snapshots ───────────────────────────────────────────────────────
+
+model TreasurySnapshot {
+  id          String   @id @default(uuid())
+  xlmBalance  Decimal
+  usdcBalance Decimal
+  totalUsd    Decimal
+  ledgerSeq   Int
+  capturedAt  DateTime @default(now())
+
+  @@index([capturedAt])
+}
+
+// ── Indexer cursor (resume on restart) ───────────────────────────────────────
+
+model IndexerCursor {
+  id              String   @id @default("singleton")
+  lastLedgerSeq   Int      @default(0)
+  updatedAt       DateTime @updatedAt
+}
+
+// ── Notification log ─────────────────────────────────────────────────────────
+
+model Notification {
+  id         String   @id @default(uuid())
+  type       String   // proposal_created | approval_needed | proposal_executed
+  recipient  String   // email or address
+  payload    Json
+  sent       Boolean  @default(false)
+  sentAt     DateTime?
+  error      String?
+
+  createdAt  DateTime @default(now())
+
+  @@index([sent])
+  @@index([type])
+}
