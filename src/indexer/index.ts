@@ -40,6 +40,14 @@ export function stopIndexer(): void {
   logger.info('Indexer stopped');
 }
 
+export function getIndexerStatus() {
+  return {
+    running,
+    consecutiveFailures,
+    pollIntervalMs: env.INDEXER_POLL_MS,
+  };
+}
+
 // ── Poll for new events ───────────────────────────────────────────────────────
 
 async function poll(): Promise<void> {
