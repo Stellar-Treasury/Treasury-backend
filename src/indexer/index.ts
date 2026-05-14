@@ -80,8 +80,10 @@ async function poll(): Promise<void> {
     });
 
     if (response.events.length > 0) {
-      logger.info({ count: response.events.length }, 'Events received');
+      logger.info({ count: response.events.length, fromLedger, toLedger }, 'Events received');
       await processEvents(response.events as SorobanRpc.Api.EventResponse[]);
+    } else {
+      logger.debug({ fromLedger, toLedger }, 'No new events');
     }
 
     // Advance cursor
@@ -89,6 +91,8 @@ async function poll(): Promise<void> {
       where: { id: 'singleton' },
       data:  { lastLedgerSeq: toLedger },
     });
+
+    logger.debug({ newCursor: toLedger }, 'Cursor advanced');
 
     // Reset failure counter on success
     consecutiveFailures = 0;
