@@ -1,15 +1,19 @@
 // src/config/database.ts
 import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
 import { logger } from './logger';
 
 declare global {
-  // eslint-disable-next-line no-var
   var __prisma: PrismaClient | undefined;
 }
+
+const connectionString = process.env.DATABASE_URL;
 
 export const prisma: PrismaClient =
   global.__prisma ??
   new PrismaClient({
+    adapter: new PrismaPg(new Pool({ connectionString })),
     log: [
       { emit: 'event', level: 'query'  },
       { emit: 'event', level: 'error'  },

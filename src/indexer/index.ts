@@ -128,8 +128,8 @@ async function processEvents(events: SorobanRpc.Api.EventResponse[]): Promise<vo
 async function processEvent(event: SorobanRpc.Api.EventResponse): Promise<void> {
   const txHash   = event.txHash;
   const ledger   = event.ledger;
-  const topics   = event.topic.map(t => t.toJSON());
-  const data     = event.value?.toJSON?.() ?? null;
+  const topics   = event.topic.map(t => t.toXDR());
+  const data     = event.value?.toXDR?.() ?? null;
 
   // First topic is always the event symbol
   const symbol   = (topics[0] as { sym?: string })?.sym ?? '';

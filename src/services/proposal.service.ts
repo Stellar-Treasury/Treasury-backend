@@ -92,8 +92,8 @@ export async function getProposalById(id: string) {
 // ── Create a new proposal (off-chain record; indexer will also create from events) ─
 export async function createProposal(input: CreateProposalInput, onChainId?: number) {
   // Build next on-chain ID if not provided (draft mode before tx confirmation)
-  let nextId = onChainId;
-  if (!nextId) {
+  let nextId: number = onChainId ?? 0;
+  if (!onChainId) {
     const last = await prisma.proposal.findFirst({ orderBy: { onChainId: 'desc' } });
     nextId = (last?.onChainId ?? 0) + 1;
   }
@@ -132,7 +132,7 @@ export async function recordApproval(input: ApproveProposalInput) {
   if (proposal.status !== 'PENDING') throw new AppError(409, `Proposal is ${proposal.status.toLowerCase()}`);
 
   const alreadyApproved = proposal.approvals.some(
-    a => a.signerAddress === input.signerAddress,
+    (a: { signerAddress: string }) => a.signerAddress === input.signerAddress,
   );
   if (alreadyApproved) throw new AppError(409, 'Signer has already approved this proposal');
 
