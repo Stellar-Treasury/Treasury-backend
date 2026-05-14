@@ -594,6 +594,8 @@ The indexer (`src/indexer/index.ts`) runs in the same process as the API server 
 3. For each event, dispatches to a typed handler based on the topic symbol.
 4. Advances the cursor so restarts resume without re-processing events.
 
+**Recent Fix**: Ensured indexer starts from ledger 1 instead of 0 to avoid RPC errors, as Stellar ledgers are 1-indexed.
+
 **Event handlers:**
 
 | Event symbol | Action |
