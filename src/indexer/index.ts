@@ -20,12 +20,14 @@ import { ProposalStatus }          from '../models/types';
 
 let running    = false;
 let intervalId: ReturnType<typeof setInterval> | null = null;
+let consecutiveFailures = 0;
 
 // ── Start the indexer loop ────────────────────────────────────────────────────
 
 export function startIndexer(): void {
   if (running) return;
   running    = true;
+  consecutiveFailures = 0;
   intervalId = setInterval(poll, env.INDEXER_POLL_MS);
   logger.info({ pollMs: env.INDEXER_POLL_MS }, '🔍  Indexer started');
   // Run immediately on start
@@ -79,9 +81,21 @@ async function poll(): Promise<void> {
       where: { id: 'singleton' },
       data:  { lastLedgerSeq: toLedger },
     });
+
+    // Reset failure counter on success
+    consecutiveFailures = 0;
   } catch (err) {
-    // Don't crash the process — log and wait for next tick
-    logger.error({ err }, 'Indexer poll error');
+    consecutiveFailures++;
+    logger.error({ err, consecutiveFailures }, 'Indexer poll error');
+
+    // If too many consecutive failures, pause polling for a bit
+    if (consecutiveFailures >= 5) {
+      logger.warn('Too many consecutive indexer failures — pausing for 60 seconds');
+      stopIndexer();
+      setTimeout(() => {
+        if (!running) startIndexer();
+      }, 60_000);
+    }
   }
 }
 
