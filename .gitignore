@@ -6,3 +6,9 @@ dist/
 .DS_Store
 prisma/migrations/
 coverage/
+.vscode/
+*.swp
+*.swo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
