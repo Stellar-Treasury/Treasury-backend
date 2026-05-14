@@ -43,10 +43,13 @@ export function stopIndexer(): void {
 async function poll(): Promise<void> {
   try {
     const cursor = await prisma.indexerCursor.findUnique({ where: { id: 'singleton' } });
-    const fromLedger = Math.max(
+    let fromLedger = Math.max(
       cursor?.lastLedgerSeq ?? 0,
       env.INDEXER_START_LEDGER,
     );
+
+    // Ensure fromLedger is at least 1 (Stellar ledgers start from 1)
+    fromLedger = Math.max(fromLedger, 1);
 
     // Fetch latest ledger to know the upper bound
     const latestLedger = await sorobanServer.getLatestLedger();
